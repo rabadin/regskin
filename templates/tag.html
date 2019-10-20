@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta http-equiv="content-type" content="text/html; charset=utf-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1" />
+	<link rel="stylesheet" type="text/css" href="/static/base-min.1.0.1.css" />
+	<link rel="stylesheet" type="text/css" href="/static/style.css" />
+</style>
+
+<title>Index of {{ path }}</title>
+</head>
+<body>
+<div id="main">
+	<div class="header">
+	<h1>{{ registry }}</h1>
+	<h2>Image /{{ path }}:{{ tag }}</h2>
+</div>
+<div class="content">
+	<img src="/static/outline_keyboard_return_black_18dp.png" height="20px" align="top" />&nbsp;<a href="/{{ path }}/" title="Parent directory">Parent directory</a><br />
+	<img src="/static/outline_image_black_18dp.png" height="20px" align="top" />&nbsp;{{ tag }}<br />
+
+	<h3>Docker pull command</h3>
+	<pre>docker pull {{ registry }}/{{ path }}:{{ tag }}</pre>
+
+	<h3>Image details</h3>
+	<table style="width:100%">
+	<tr><td style="width:20%">tag</td><td style="width:80%">{{ tag }}</td></tr>
+	<tr><td>path</td><td>{{ registry }}/{{ path }}:{{ tag }}</td></tr>
+	<tr><td>created</td><td>{{ image.details.created }}</td></tr>
+	<tr><td>docker_version</td><td>{{ image.details.docker_version }}</td></tr>
+	<tr><td>architecture</td><td>{{ image.details.architecture }}</td></tr>
+	<tr><td>os</td><td>{{ image.details.os }}</td></tr>
+	</table>
+
+	{% if image.details.config_parsed.labels.len() != 0 %}
+	<h3>Labels</h3>
+	<table style="width:100%">
+	{% for (label, value) in image.details.config_parsed.labels %}
+	<tr><td style="width:35%">{{ label }}</td><td style="width:65%">{{ value }}</td></tr>
+	{% endfor %}
+	</table>
+	{% endif %}
+</div>
+</div>
+</body>
+</html>

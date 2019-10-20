@@ -1,0 +1,49 @@
+#main {
+    margin-left: auto;
+    margin-right: auto;
+    padding-left: 1em;
+    padding-right: 1em;
+    max-width: 1000px;
+    color: rgb(75, 75, 75);
+}
+
+.header {
+    font-family: "Raleway", "Helvetica Neue", Helvetica, Arial, sans-serif;
+    /*max-width: 768px;*/
+    max-width: 1000px;
+    margin: 0 auto 20px auto;
+    padding: 1em;
+    text-align: center;
+    border-bottom: 1px solid #eee;
+    background: #fff;
+    letter-spacing: 0.05em;
+}
+
+.header h1 {
+    font-size: 200%;
+    font-weight: 100;
+    margin: 0;
+}
+
+.header h2 {
+    font-size: 125%;
+    font-weight: 100;
+    line-height: 1.5;
+    margin: 0;
+    color: #666;
+    letter-spacing: -0.02em;
+}
+
+
+tr:nth-child(odd) {background:#f4f4f4;}
+
+pre {
+	padding: 0.5em;
+	font-family:monospace;
+    white-space: pre-wrap;       /* Since CSS 2.1 */
+    white-space: -moz-pre-wrap;  /* Mozilla, since 1999 */
+    white-space: -pre-wrap;      /* Opera 4-6 */
+    white-space: -o-pre-wrap;    /* Opera 7 */
+    word-wrap: break-word;       /* Internet Explorer 5.5+ */
+    background-color: #EEEEEE;
+}
