@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta http-equiv="content-type" content="text/html; charset=utf-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1" />
+	<link rel="stylesheet" type="text/css" href="/static/base-min.1.0.1.css" />
+	<link rel="stylesheet" type="text/css" href="/static/style.css" />
+</style>
+
+<title>Index of {{ path }}</title>
+</head>
+<body>
+<div id="main">
+	<div class="header">
+	<h1>{{ registry }}</h1>
+	<h2>Directory /{{ path }}</h2>
+</div>
+<div class="content">
+	{% if !path.is_empty() %}
+	<img src="/static/outline_keyboard_return_black_18dp.png" height="20px" align="top" />&nbsp;<a href=".." title="Parent directory">Parent directory</a><br />
+	{% endif %}
+	{% for dir in dirs %}
+	<img src="/static/outline_folder_black_18dp.png" height="20px" align="top" />&nbsp;<a href="/{{ path }}{{ dir }}/" title="{{ dir }}">{{ dir }}</a><br />
+	{% endfor %}
+	{% for tag in tags %}
+	<img src="/static/outline_image_black_18dp.png" height="20px" align="top" />&nbsp;<a href="/{{ path_stripped }}:{{ tag }}" title="{{ tag }}">{{ tag }}</a><br />
+	{% endfor %}
+</div>
+</div>
+</body>
+</html>
