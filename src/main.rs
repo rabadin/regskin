@@ -7,6 +7,7 @@ use actix_files as fs;
 use actix_web::http::header;
 use actix_web::middleware::{DefaultHeaders, Logger};
 use actix_web::{middleware, web, App, HttpResponse, HttpServer, Result};
+use actix_web_prom::PrometheusMetrics;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use std::sync::RwLock;
@@ -24,6 +25,12 @@ mod vars;
 
 fn healthz() -> Result<String> {
     Ok("Ok".to_string())
+}
+
+fn favicon() -> HttpResponse {
+    HttpResponse::MovedPermanently()
+        .set_header(header::LOCATION, "/static/favicon.ico")
+        .finish()
 }
 
 #[derive(Template)]
@@ -126,18 +133,21 @@ fn main() {
     let state = State {
         catalog: guard_catalog.clone(),
     };
+    let prometheus = PrometheusMetrics::new("regskin", "/metrics");
     HttpServer::new(move || {
         App::new()
+            .wrap(prometheus.clone())
             .data(state.clone())
             .wrap(Logger::default())
             .wrap(middleware::NormalizePath)
             .wrap(DefaultHeaders::new().header(header::SERVER, vars::SERVER_BANNER.to_string()))
             .service(fs::Files::new("/static/", "static").show_files_listing())
+            .route("/favicon.ico", web::get().to(favicon))
+            .route("/healthz", web::get().to(healthz))
             .route("/{path:[^:]*}", web::get().to(directory))
             .route("/{path:[^:]*}", web::head().to(directory))
             .route("/{path:[^:]*}:{tag:.*}", web::get().to(tag))
             .route("/{path:[^:]*}:{tag:.*}", web::head().to(tag))
-            .route("/healthz/", web::get().to(healthz))
     })
     .backlog(2048)
     .bind(SocketAddr::from((
