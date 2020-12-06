@@ -1,4 +1,5 @@
 use reqwest;
+use reqwest::blocking::Client as BlockingClient;
 use reqwest::{Client, StatusCode};
 use serde::Deserialize;
 use serde_json::{json, Value};
@@ -8,10 +9,16 @@ use std::time::Duration;
 use crate::tree::Tree;
 use crate::vars;
 
-// TODO: rewrite this with async code once async/await
-// is in rust stable.
 fn get_client() -> Client {
     Client::builder()
+        .gzip(true)
+        .timeout(Duration::from_secs(100))
+        .build()
+        .unwrap()
+}
+
+fn get_sync_client() -> BlockingClient {
+    reqwest::blocking::Client::builder()
         .gzip(true)
         .timeout(Duration::from_secs(100))
         .build()
@@ -38,10 +45,11 @@ impl Default for Catalog {
 }
 
 impl Catalog {
-    pub fn get() -> Result<Catalog, Box<dyn std::error::Error>> {
-        let url = format!("{}/v2/_catalog?n=10000", *vars::REGSKIN_REGISTRY_URL);
-        let client = get_client();
-        let mut catalog: Catalog = client.get(&url).send()?.json()?;
+    fn get_url() -> String {
+        return format!("{}/v2/_catalog?n=10", *vars::REGSKIN_REGISTRY_URL);
+    }
+    pub fn get_sync() -> Result<Catalog, Box<dyn std::error::Error>> {
+        let mut catalog: Catalog = get_sync_client().get(&Catalog::get_url()).send()?.json()?;
         catalog.update_tree();
         Ok(catalog)
     }
@@ -54,7 +62,7 @@ impl Catalog {
         self.tree = structure;
     }
 
-    pub fn get_tags(&self, path: &str) -> Result<Tags, Box<dyn std::error::Error>> {
+    pub async fn get_tags(&self, path: &str) -> Result<Tags, Box<dyn std::error::Error>> {
         let mut repo = path.to_string();
         repo.pop();
         if !self.repositories.contains(&repo) {
@@ -62,17 +70,18 @@ impl Catalog {
         }
         let client = get_client();
         let url = format!("{}/v2/{}/tags/list", *vars::REGSKIN_REGISTRY_URL, path);
-        let mut response = client
+        let response = client
             .get(&url)
             .header(
                 "Accept",
                 "application/vnd.docker.distribution.manifest.v2+json",
             )
-            .send()?;
+            .send()
+            .await?;
         if response.status() == StatusCode::NOT_FOUND {
             return Ok(Tags::new());
         } else if response.status().is_success() {
-            let mut tags: Tags = response.json()?;
+            let mut tags: Tags = response.json().await?;
             tags.tags.sort();
             tags.tags.reverse();
             return Ok(tags);
@@ -80,7 +89,7 @@ impl Catalog {
         Ok(Tags::new())
     }
 
-    pub fn get_image_data(
+    pub async fn get_image_data(
         &self,
         path: &str,
         tag: &str,
@@ -92,7 +101,7 @@ impl Catalog {
             tag
         );
         let client = get_client();
-        let mut image: ImageV1 = client.get(&url).send()?.json()?;
+        let mut image: ImageV1 = client.get(&url).send().await?.json().await?;
         let mut details: ImageV1Details =
             serde_json::from_str(image.history[0].get("v1Compatibility").unwrap())?;
         details.update_config();

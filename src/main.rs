@@ -14,7 +14,7 @@ use std::sync::RwLock;
 
 use actix_web::error::{ErrorInternalServerError, ErrorNotFound};
 use askama::Template;
-use clokwerk::{Scheduler, TimeUnits};
+use std::thread;
 use std::time::Duration;
 
 use self::registry::{Catalog, ImageV1};
@@ -23,8 +23,8 @@ mod registry;
 mod tree;
 mod vars;
 
-fn healthz() -> Result<String> {
-    Ok("Ok".to_string())
+async fn healthz() -> HttpResponse {
+    HttpResponse::Ok().body("Ok")
 }
 
 fn favicon() -> HttpResponse {
@@ -43,7 +43,7 @@ struct DirectoryTemplate {
     registry: String,
 }
 
-fn directory(data: web::Data<State>, path: web::Path<(String,)>) -> Result<HttpResponse> {
+async fn directory(data: web::Data<State>, path: web::Path<String>) -> Result<HttpResponse> {
     let catalog = data.catalog.read().unwrap();
     let full_path = path.0.clone();
     let mut full_path_stripped = path.0.clone();
@@ -54,6 +54,7 @@ fn directory(data: web::Data<State>, path: web::Path<(String,)>) -> Result<HttpR
         Some(ref n) => {
             let tags = catalog
                 .get_tags(&full_path)
+                .await
                 .map_err(ErrorInternalServerError)?;
             let template = DirectoryTemplate {
                 dirs: n.sorted_childrens(),
@@ -78,12 +79,13 @@ struct TagTemplate {
     image: ImageV1,
 }
 
-fn tag(data: web::Data<State>, path: web::Path<(String, String)>) -> Result<HttpResponse> {
+async fn tag(data: web::Data<State>, path: web::Path<(String, String)>) -> Result<HttpResponse> {
     let catalog = data.catalog.read().unwrap();
-    let full_path = path.0.clone();
+    let full_path = path.clone().0;
     let tag = path.1.clone();
     let image = catalog
         .get_image_data(&full_path, &tag)
+        .await
         .map_err(ErrorInternalServerError)?;
     let template = TagTemplate {
         path: full_path,
@@ -103,13 +105,14 @@ pub struct State {
 
 fn update_catalog(guard: &Arc<RwLock<Catalog>>) -> Result<(), Box<dyn std::error::Error>> {
     debug!("Updating registry catalog");
-    let new_catalog = registry::Catalog::get()?;
+    let new_catalog = registry::Catalog::get_sync()?;
     let mut catalog = guard.write().unwrap();
-    std::mem::replace(&mut *catalog, new_catalog);
+    let _ = std::mem::replace(&mut *catalog, new_catalog);
     Ok(())
 }
 
-fn main() {
+#[actix_web::main]
+async fn main() -> std::io::Result<()> {
     env_logger::Builder::from_env("REGSKIN_LOG_LEVEL").init();
     info!("Starting server {}", vars::SERVER_BANNER.to_string());
 
@@ -119,43 +122,47 @@ fn main() {
     let guard_catalog = Arc::new(RwLock::new(catalog));
     let guard = guard_catalog.clone();
 
-    info!("Getting initial catalog...");
-    let _ = update_catalog(&guard)
-        .map_err(|e| error!("{}", e))
-        .map(|_| info!("Catalog fetched"));
-
-    let mut scheduler = Scheduler::new();
-    scheduler.every(10.minutes()).run(move || {
-        let _ = update_catalog(&guard).map_err(|e| error!("{}", e));
+    thread::spawn(move || loop {
+        info!("Updating catalog...");
+        let _ = update_catalog(&guard)
+            .map_err(|e| error!("{}", e))
+            .map(|_| info!("Catalog fetched"));
+        thread::sleep(Duration::from_millis(1000 * 60 * 10));
     });
-    let _thread = scheduler.watch_thread(Duration::from_millis(100));
+
+    loop {
+        thread::sleep(Duration::from_millis(2000));
+        if guard_catalog.clone().read().unwrap().repositories.len() != 0 {
+            break;
+        }
+    }
 
     let state = State {
         catalog: guard_catalog.clone(),
     };
-    let prometheus = PrometheusMetrics::new("regskin", "/metrics");
+    let prometheus = PrometheusMetrics::new("regskin", Some("/metrics"), None);
     HttpServer::new(move || {
         App::new()
-            .wrap(prometheus.clone())
             .data(state.clone())
             .wrap(Logger::default())
-            .wrap(middleware::NormalizePath)
+            .wrap(middleware::NormalizePath::new(
+                middleware::normalize::TrailingSlash::MergeOnly,
+            ))
             .wrap(DefaultHeaders::new().header(header::SERVER, vars::SERVER_BANNER.to_string()))
             .service(fs::Files::new("/static/", "static").show_files_listing())
             .route("/favicon.ico", web::get().to(favicon))
             .route("/healthz", web::get().to(healthz))
             .route("/{path:[^:]*}", web::get().to(directory))
-            .route("/{path:[^:]*}", web::head().to(directory))
+            //.route("/{path:[^:]*}", web::head().to(directory))
             .route("/{path:[^:]*}:{tag:.*}", web::get().to(tag))
             .route("/{path:[^:]*}:{tag:.*}", web::head().to(tag))
+            .wrap(prometheus.clone())
     })
     .backlog(2048)
     .bind(SocketAddr::from((
         *vars::REGSKIN_LISTEN,
         *vars::REGSKIN_PORT,
-    )))
-    .unwrap()
+    )))?
     .run()
-    .unwrap();
-    info!("Stopping server");
+    .await
 }

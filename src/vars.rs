@@ -6,7 +6,7 @@ const VERSION: &str = env!("CARGO_PKG_VERSION");
 const NAME: &str = env!("CARGO_PKG_NAME");
 
 lazy_static! {
-    pub static ref SERVER_BANNER: String = { format!("{} {}", NAME, VERSION) };
+    pub static ref SERVER_BANNER: String = format!("{} {}", NAME, VERSION);
 }
 
 // Regskin config env vars.
