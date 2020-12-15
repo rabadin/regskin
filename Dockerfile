@@ -7,7 +7,7 @@ WORKDIR /build/
 COPY . /build/
 RUN cargo build --release
 
-FROM debian:buster-20201117-slim
+FROM debian:buster-20201209-slim
 
 RUN apt-get -q update \
 	&& apt-get install -y \
