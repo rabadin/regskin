@@ -1,4 +1,4 @@
-FROM rust:1.48-slim-buster as builder
+FROM rust:1.49-slim-buster as builder
 
 ENV DEBIAN_FRONTEND noninteractive
 RUN apt-get -q update \
