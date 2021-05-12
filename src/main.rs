@@ -45,9 +45,15 @@ struct DirectoryTemplate {
 
 async fn directory(data: web::Data<State>, path: web::Path<String>) -> Result<HttpResponse> {
     let catalog = data.catalog.read().unwrap();
-    let full_path = path.0.clone();
+    let mut full_path = path.0.clone();
     let mut full_path_stripped = path.0.clone();
-    full_path_stripped.pop();
+    if full_path != "" {
+        if full_path_stripped.ends_with("/") {
+            full_path_stripped.pop();
+        } else {
+            full_path = full_path + "/"
+        }
+    }
     let node = catalog.tree.get_path(&full_path);
     match node {
         None => Err(ErrorNotFound("Not found")),
