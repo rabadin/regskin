@@ -135,9 +135,11 @@ pub struct ImageV1 {
 
 #[derive(Deserialize, Debug, Clone)]
 pub struct ImageV1Details {
+    #[serde(default)]
     pub architecture: String,
     pub config: Value,
     pub created: String,
+    #[serde(default)]
     pub docker_version: String,
     pub os: String,
     #[serde(skip)]
