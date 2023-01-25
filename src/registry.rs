@@ -46,7 +46,11 @@ impl Default for Catalog {
 
 impl Catalog {
     fn get_url() -> String {
-        return format!("{}/v2/_catalog?n=10000", *vars::REGSKIN_REGISTRY_URL);
+        return format!(
+            "{}/v2/_catalog?n={}",
+            *vars::REGSKIN_REGISTRY_URL,
+            *vars::REGSKIN_CATALOG_LIMIT
+        );
     }
     pub fn get_sync() -> Result<Catalog, Box<dyn std::error::Error>> {
         let mut catalog: Catalog = get_sync_client().get(&Catalog::get_url()).send()?.json()?;

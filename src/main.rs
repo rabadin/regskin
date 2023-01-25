@@ -7,7 +7,7 @@ use actix_files as fs;
 use actix_web::http::header;
 use actix_web::middleware::{DefaultHeaders, Logger};
 use actix_web::{guard, middleware, web, App, HttpResponse, HttpServer, Responder, Result};
-use actix_web_prom::PrometheusMetrics;
+use actix_web_prom::PrometheusMetricsBuilder;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use std::sync::RwLock;
@@ -27,9 +27,9 @@ async fn healthz() -> HttpResponse {
     HttpResponse::Ok().body("Ok")
 }
 
-fn favicon() -> HttpResponse {
+async fn favicon() -> HttpResponse {
     HttpResponse::MovedPermanently()
-        .set_header(header::LOCATION, "/static/favicon.ico")
+        .insert_header((header::LOCATION, "/static/favicon.ico"))
         .finish()
 }
 
@@ -45,8 +45,8 @@ struct DirectoryTemplate {
 
 async fn directory(data: web::Data<State>, path: web::Path<String>) -> Result<HttpResponse> {
     let catalog = data.catalog.read().unwrap();
-    let mut full_path = path.0.clone();
-    let mut full_path_stripped = path.0.clone();
+    let mut full_path = path.clone();
+    let mut full_path_stripped = path.clone();
     if full_path != "" {
         if full_path_stripped.ends_with("/") {
             full_path_stripped.pop();
@@ -78,8 +78,8 @@ async fn directory(data: web::Data<State>, path: web::Path<String>) -> Result<Ht
 
 async fn directory_json(data: web::Data<State>, path: web::Path<String>) -> Result<impl Responder> {
     let catalog = data.catalog.read().unwrap();
-    let mut full_path = path.0.clone();
-    let mut full_path_stripped = path.0.clone();
+    let mut full_path = path.clone();
+    let mut full_path_stripped = path.clone();
     if full_path != "" {
         if full_path_stripped.ends_with("/") {
             full_path_stripped.pop();
@@ -188,15 +188,16 @@ async fn main() -> std::io::Result<()> {
     let state = State {
         catalog: guard_catalog.clone(),
     };
-    let prometheus = PrometheusMetrics::new("regskin", Some("/metrics"), None);
+    let prometheus = PrometheusMetricsBuilder::new("regskin")
+        .endpoint("/metrics")
+        .build()
+        .unwrap();
     HttpServer::new(move || {
         App::new()
-            .data(state.clone())
+            .app_data(web::Data::new(state.clone()))
             .wrap(Logger::default())
-            .wrap(middleware::NormalizePath::new(
-                middleware::normalize::TrailingSlash::MergeOnly,
-            ))
-            .wrap(DefaultHeaders::new().header(header::SERVER, vars::SERVER_BANNER.to_string()))
+            .wrap(middleware::NormalizePath::trim())
+            .wrap(DefaultHeaders::new().add((header::SERVER, vars::SERVER_BANNER.to_string())))
             .service(fs::Files::new("/static/", "static").show_files_listing())
             .service(web::resource("/favicon.ico").route(web::get().to(favicon)))
             .service(web::resource("/healthz").route(web::get().to(healthz)))

@@ -26,4 +26,8 @@ lazy_static! {
         .unwrap_or_else(|_| "3000".to_string())
         .parse()
         .unwrap();
+    pub static ref REGSKIN_CATALOG_LIMIT: String = var("REGSKIN_CATALOG_LIMIT")
+        .unwrap_or_else(|_| "10000".to_string())
+        .parse()
+        .unwrap();
 }
