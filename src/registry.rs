@@ -1,7 +1,7 @@
 use reqwest;
 use reqwest::blocking::Client as BlockingClient;
 use reqwest::{Client, StatusCode};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::collections::{BTreeMap, HashMap};
 use std::time::Duration;
@@ -105,15 +105,23 @@ impl Catalog {
         let mut details: ImageV1Details =
             serde_json::from_str(image.history[0].get("v1Compatibility").unwrap())?;
         details.update_config();
+        details.tag = tag.to_string();
+        details.path = path.to_string();
         image.details = details;
         Ok(image)
     }
 }
 
-#[derive(Deserialize, Debug, Clone)]
+#[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct Tags {
     pub name: String,
     pub tags: Vec<String>,
+}
+
+#[derive(Deserialize, Serialize, Debug, Clone)]
+pub struct Dir {
+    pub tags: Vec<String>,
+    pub dirs: Vec<String>,
 }
 
 impl Tags {
@@ -125,7 +133,7 @@ impl Tags {
     }
 }
 
-#[derive(Deserialize, Debug, Clone)]
+#[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct ImageV1 {
     pub name: String,
     pub history: Vec<HashMap<String, String>>,
@@ -133,8 +141,12 @@ pub struct ImageV1 {
     pub details: ImageV1Details,
 }
 
-#[derive(Deserialize, Debug, Clone)]
+#[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct ImageV1Details {
+    #[serde(default)]
+    pub tag: String,
+    #[serde(default)]
+    pub path: String,
     #[serde(default)]
     pub architecture: String,
     pub config: Value,
@@ -152,6 +164,8 @@ impl Default for ImageV1Details {
             config_parsed: Config {
                 ..Default::default()
             },
+            tag: "".to_string(),
+            path: "".to_string(),
             architecture: "".to_string(),
             config: json!(""),
             created: "".to_string(),

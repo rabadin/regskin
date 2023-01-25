@@ -1,4 +1,4 @@
-FROM rust:1.51-slim-buster as builder
+FROM rust:1.66-slim-buster as builder
 
 ENV DEBIAN_FRONTEND noninteractive
 RUN apt-get -q update \
@@ -7,7 +7,7 @@ WORKDIR /build/
 COPY . /build/
 RUN cargo build --release
 
-FROM debian:buster-20210408-slim
+FROM debian:bullseye-20230109-slim
 
 RUN apt-get -q update \
 	&& apt-get install -y \
