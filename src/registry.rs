@@ -1,9 +1,13 @@
+use lazy_static::lazy_static;
 use reqwest;
 use reqwest::blocking::Client as BlockingClient;
-use reqwest::{Client, StatusCode};
+use reqwest::blocking::Response as BlockingResponse;
+use reqwest::{Client, Response, StatusCode};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::collections::{BTreeMap, HashMap};
+
+use regex::Regex;
 use std::time::Duration;
 
 use crate::tree::Tree;
@@ -11,18 +15,26 @@ use crate::vars;
 
 fn get_client() -> Client {
     Client::builder()
+        .danger_accept_invalid_certs(*vars::REGSKIN_IGNORE_INVALID_CERT)
         .gzip(true)
-        .timeout(Duration::from_secs(100))
+        .timeout(Duration::from_secs(300))
         .build()
         .unwrap()
 }
 
 fn get_sync_client() -> BlockingClient {
     reqwest::blocking::Client::builder()
+        .danger_accept_invalid_certs(*vars::REGSKIN_IGNORE_INVALID_CERT)
         .gzip(true)
-        .timeout(Duration::from_secs(100))
+        .timeout(Duration::from_secs(300))
         .build()
         .unwrap()
+}
+
+#[derive(Deserialize, Debug, Clone)]
+pub struct Token {
+    pub token: String,
+    pub expires_in: i32,
 }
 
 #[derive(Deserialize, Debug, Clone)]
@@ -52,8 +64,67 @@ impl Catalog {
             *vars::REGSKIN_CATALOG_LIMIT
         );
     }
+
+    fn get_token_url(scope: &str, service: &str) -> String {
+        return format!(
+            "{}/v2/token?service={}&scope={}",
+            *vars::REGSKIN_REGISTRY_URL,
+            scope,
+            service
+        );
+    }
+
+    pub async fn get_auth_header_if_401(
+        response: &Response,
+    ) -> Result<String, Box<dyn std::error::Error>> {
+        lazy_static! {
+            static ref REGEX: Regex =
+                Regex::new(r#"(?i)service="([^"]+)",\s*scope="([^"]+)""#).unwrap();
+        }
+        if response.status() == StatusCode::UNAUTHORIZED {
+            let auth = response.headers()["www-authenticate"].to_str()?;
+            if let Some(captures) = REGEX.captures(auth) {
+                let service = captures.get(1).unwrap().as_str();
+                let scope = captures.get(2).unwrap().as_str();
+                let token_url = &Catalog::get_token_url(service, scope);
+                let token: Token = get_client().get(token_url).send().await?.json().await?;
+                return Ok(format!("Bearer {}", token.token));
+            }
+        }
+        return Ok("".to_string());
+    }
+
+    pub fn get_auth_header_if_401_sync(
+        response: &BlockingResponse,
+    ) -> Result<String, Box<dyn std::error::Error>> {
+        lazy_static! {
+            static ref REGEX: Regex =
+                Regex::new(r#"(?i)service="([^"]+)",\s*scope="([^"]+)""#).unwrap();
+        }
+        if response.status() == StatusCode::UNAUTHORIZED {
+            let auth = response.headers()["www-authenticate"].to_str()?;
+            if let Some(captures) = REGEX.captures(auth) {
+                let service = captures.get(1).unwrap().as_str();
+                let scope = captures.get(2).unwrap().as_str();
+                let token_url = &Catalog::get_token_url(service, scope);
+                let token: Token = get_sync_client().get(token_url).send()?.json()?;
+                return Ok(format!("Bearer {}", token.token));
+            }
+        }
+        return Ok("".to_string());
+    }
+
     pub fn get_sync() -> Result<Catalog, Box<dyn std::error::Error>> {
-        let mut catalog: Catalog = get_sync_client().get(&Catalog::get_url()).send()?.json()?;
+        let mut catalog: Catalog;
+        let mut response = get_sync_client().get(&Catalog::get_url()).send()?;
+        let auth = &Catalog::get_auth_header_if_401_sync(&response)?;
+        if auth != "" {
+            response = get_sync_client()
+                .get(&Catalog::get_url())
+                .header("Authorization", auth)
+                .send()?;
+        }
+        catalog = response.json()?;
         catalog.update_tree();
         Ok(catalog)
     }
@@ -73,8 +144,8 @@ impl Catalog {
             return Ok(Tags::new());
         }
         let client = get_client();
-        let url = format!("{}/v2/{}/tags/list", *vars::REGSKIN_REGISTRY_URL, path);
-        let response = client
+        let url = format!("{}/v2/{}tags/list", *vars::REGSKIN_REGISTRY_URL, path);
+        let mut response = client
             .get(&url)
             .header(
                 "Accept",
@@ -82,6 +153,14 @@ impl Catalog {
             )
             .send()
             .await?;
+        let auth = &Catalog::get_auth_header_if_401(&response).await?;
+        if auth != "" {
+            response = client
+                .get(&url)
+                .header("Authorization", auth)
+                .send()
+                .await?;
+        }
         if response.status() == StatusCode::NOT_FOUND {
             return Ok(Tags::new());
         } else if response.status().is_success() {
@@ -105,7 +184,16 @@ impl Catalog {
             tag
         );
         let client = get_client();
-        let mut image: ImageV1 = client.get(&url).send().await?.json().await?;
+        let mut response = client.get(&url).send().await?;
+        let auth = &Catalog::get_auth_header_if_401(&response).await?;
+        if auth != "" {
+            response = client
+                .get(&url)
+                .header("Authorization", auth)
+                .send()
+                .await?;
+        }
+        let mut image: ImageV1 = response.json().await?;
         let mut details: ImageV1Details =
             serde_json::from_str(image.history[0].get("v1Compatibility").unwrap())?;
         details.update_config();

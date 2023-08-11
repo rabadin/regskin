@@ -20,6 +20,7 @@ use std::time::Duration;
 use self::registry::{Catalog, ImageV1};
 
 mod registry;
+mod tests;
 mod tree;
 mod vars;
 

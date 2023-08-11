@@ -30,4 +30,8 @@ lazy_static! {
         .unwrap_or_else(|_| "10000".to_string())
         .parse()
         .unwrap();
+    pub static ref REGSKIN_IGNORE_INVALID_CERT: bool = var("REGSKIN_IGNORE_INVALID_CERT")
+        .unwrap_or_else(|_| "false".to_string())
+        .parse()
+        .unwrap();
 }
