@@ -34,7 +34,6 @@ fn get_sync_client() -> BlockingClient {
 #[derive(Deserialize, Debug, Clone)]
 pub struct Token {
     pub token: String,
-    pub expires_in: i32,
 }
 
 #[derive(Deserialize, Debug, Clone)]
