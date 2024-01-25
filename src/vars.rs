@@ -11,6 +11,10 @@ lazy_static! {
 
 // Regskin config env vars.
 lazy_static! {
+    pub static ref REGSKIN_REGISTRY_NOTE: String = var("REGSKIN_REGISTRY_NOTE")
+        .unwrap_or_else(|_| "".to_string())
+        .parse()
+        .unwrap();
     pub static ref REGSKIN_REGISTRY_URL: String = var("REGSKIN_REGISTRY_URL").unwrap();
     pub static ref REGSKIN_REGISTRY_HOST: String =
         Url::parse(&var("REGSKIN_REGISTRY_URL").unwrap())
@@ -18,6 +22,12 @@ lazy_static! {
             .host_str()
             .unwrap()
             .to_string();
+    pub static ref REGSKIN_DISPLAY_REGISTRY: String = var("REGSKIN_DISPLAY_REGISTRY")
+        .unwrap_or_else(|_| Url::parse(&var("REGSKIN_REGISTRY_URL").unwrap())
+            .unwrap()
+            .host_str()
+            .unwrap()
+            .to_string());
     pub static ref REGSKIN_LISTEN: IpAddr = var("REGSKIN_LISTEN")
         .unwrap_or_else(|_| "127.0.0.1".to_string())
         .parse()

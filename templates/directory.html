@@ -16,6 +16,13 @@
 	<h2>Directory /{{ path }}</h2>
 </div>
 <div class="content">
+	{% if note != "" %}
+	<div style="color: red;border:1px dotted red;padding:5px;text-align:center">
+	{{ note }}
+	</div>
+	<br />
+	{% endif %}
+
 	{% if !path.is_empty() %}
 	<img src="/static/outline_keyboard_return_black_18dp.png" height="20px" align="top" />&nbsp;<a href=".." title="Parent directory">Parent directory</a><br />
 	{% endif %}

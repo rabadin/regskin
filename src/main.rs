@@ -37,6 +37,7 @@ async fn favicon() -> HttpResponse {
 #[derive(Template)]
 #[template(path = "directory.html")]
 struct DirectoryTemplate {
+    note: String,
     tags: Vec<String>,
     dirs: Vec<String>,
     path: String,
@@ -69,6 +70,7 @@ async fn directory(data: web::Data<State>, path: web::Path<String>) -> Result<Ht
                 path_stripped: full_path_stripped,
                 tags: tags.tags,
                 registry: vars::REGSKIN_REGISTRY_HOST.to_string(),
+                note: vars::REGSKIN_REGISTRY_NOTE.to_string(),
             }
             .render()
             .unwrap();
@@ -108,6 +110,7 @@ async fn directory_json(data: web::Data<State>, path: web::Path<String>) -> Resu
 #[derive(Template)]
 #[template(path = "tag.html")]
 struct TagTemplate {
+    note: String,
     path: String,
     registry: String,
     tag: String,
@@ -124,9 +127,10 @@ async fn tag(data: web::Data<State>, path: web::Path<(String, String)>) -> Resul
         .map_err(ErrorInternalServerError)?;
     let template = TagTemplate {
         path: full_path,
-        tag,
-        image,
-        registry: vars::REGSKIN_REGISTRY_HOST.to_string(),
+        tag: tag,
+        image: image,
+        registry: vars::REGSKIN_DISPLAY_REGISTRY.to_string(),
+        note: vars::REGSKIN_REGISTRY_NOTE.to_string(),
     }
     .render()
     .unwrap();
