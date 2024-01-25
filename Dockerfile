@@ -1,4 +1,4 @@
-FROM rust:1.71.1-slim-bookworm as builder
+FROM rust:1.75.0-slim-bookworm as builder
 
 ENV DEBIAN_FRONTEND noninteractive
 RUN apt-get -q update \
@@ -7,7 +7,7 @@ WORKDIR /build/
 COPY . /build/
 RUN cargo build --release
 
-FROM debian:bookworm-20230725-slim
+FROM debian:bookworm-20240110-slim
 
 RUN apt-get -q update \
 	&& apt-get install -y \
