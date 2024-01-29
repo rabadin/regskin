@@ -164,8 +164,7 @@ impl Catalog {
             return Ok(Tags::new());
         } else if response.status().is_success() {
             let mut tags: Tags = response.json().await?;
-            tags.tags.sort();
-            tags.tags.reverse();
+            tags.tags.sort_by(|a, b| natord::compare(&b, &a));  // natural sort, descending 
             return Ok(tags);
         }
         Ok(Tags::new())
